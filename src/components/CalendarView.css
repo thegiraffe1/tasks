@@ -190,3 +190,9 @@
   margin-bottom: 0;
   padding-bottom: 0;
 }
+
+.skeleton-task.more-indicator.all-completed {
+  background-color: #dcfce7;
+  color: #14532d;
+  border-color: #22c55e;
+}

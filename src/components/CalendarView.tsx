@@ -237,6 +237,8 @@ export function CalendarView({ tasks, availabilities }: CalendarViewProps) {
           const dateStr = toLocalDateString(date);
           
           const dayTasks = tasksByDateMap.get(dateStr) || [];
+          const completedTasksCount = dayTasks.filter(t => t.completion).length;
+          const uncompletedTasksCount = dayTasks.length - completedTasksCount;
           const dayAvails = availByDateMap.get(dateStr) || [];
           
           const totalAvailHours = dayAvails.reduce((sum, a) => sum + getDynamicAvailableTimeHours(a, now), 0);
@@ -261,7 +263,15 @@ export function CalendarView({ tasks, availabilities }: CalendarViewProps) {
               
               <div className={`day-tasks-skeleton ${viewMode === 'month' ? 'month-mode' : ''}`}>
                 {viewMode === 'month' ? (
-                  dayTasks.length > 0 && <div className="skeleton-task more-indicator">{dayTasks.length} tasks</div>
+                  dayTasks.length > 0 && (
+                    <div className={`skeleton-task more-indicator ${uncompletedTasksCount === 0 ? 'all-completed' : ''}`}>
+                      {completedTasksCount === 0 
+                        ? `${uncompletedTasksCount} tasks` 
+                        : uncompletedTasksCount === 0 
+                        ? `${completedTasksCount} done` 
+                        : `${uncompletedTasksCount} tasks | ${completedTasksCount} done`}
+                    </div>
+                  )
                 ) : (
                   <>
                     {dayTasks.map(t => (

@@ -1,5 +1,3 @@
-import React from 'react';
-
 export type TabKey = 'tasks' | 'availability' | 'calendar';
 
 interface NavigationProps {
