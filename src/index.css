@@ -266,6 +266,8 @@ body {
   border-radius: 12px;
   padding: 1.25rem;
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+  max-height: 95%;
+  overflow-y: auto;
 }
 
 .modal-title {
@@ -292,7 +294,8 @@ body {
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   width: 100%;
   font: inherit;
   padding: 0.45rem 0.5rem;
@@ -304,6 +307,31 @@ body {
   border-radius: 999px;
   font-weight: 600;
   padding: 0.4rem 0.65rem;
+}
+
+.description-view {
+  display: block;
+  width: 100%;
+  font: inherit;
+  padding: 0.45rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  min-height: 4.8rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  cursor: text;
+  max-height: 2.5rem;
+  overflow-y: auto;
+}
+
+.description-view:hover {
+  background: #f8fafc;
+}
+
+.description-view a {
+  color: #2563eb;
+  text-decoration: underline;
 }
 
 .field-row {

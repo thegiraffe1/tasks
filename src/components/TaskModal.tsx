@@ -41,8 +41,22 @@ export function TaskModal({
 }: TaskModalProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  const descRef = useRef<HTMLTextAreaElement>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(newEmptyForm);
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [isWide, setIsWide] = useState(true);
+
+  useEffect(() => {
+    const checkWidth = () => {
+      // This breakpoint is a bit arbitrary, chosen to be wider than two narrow panels.
+      setIsWide(window.innerWidth > 768);
+    };
+
+    checkWidth();
+    window.addEventListener("resize", checkWidth);
+    return () => window.removeEventListener("resize", checkWidth);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -57,8 +71,10 @@ export function TaskModal({
         completion: task.completion,
         missed: task.missed,
       });
+      setEditingDesc(false);
     } else {
       setForm(newEmptyForm());
+      setEditingDesc(false);
     }
   }, [open, mode, task]);
 
@@ -69,6 +85,12 @@ export function TaskModal({
     );
     el?.focus();
   }, [open, mode]);
+
+  useEffect(() => {
+    if (editingDesc && descRef.current) {
+      descRef.current.focus();
+    }
+  }, [editingDesc]);
 
   useEffect(() => {
     if (!open) return;
@@ -88,6 +110,28 @@ export function TaskModal({
   const parseNum = (v: string) => {
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
+  };
+
+  const renderDescription = (text: string) => {
+    if (!text.trim()) return <span className="muted">Click to add description...</span>;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    return parts.map((part, i) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {part}
+          </a>
+        );
+      }
+      return part;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -146,16 +190,28 @@ export function TaskModal({
     >
       <div
         ref={panelRef}
-        className="modal-panel"
+        className="modal-flex-layout"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onMouseDown={(e) => e.stopPropagation()}
+        style={{
+          display: "flex",
+          gap: isWide ? "1rem" : 0,
+          alignItems: "stretch",
+          justifyContent: "center",
+          flexWrap: "wrap",
+          width: "100%",
+          maxWidth: isWide ? "1000px" : "500px",
+          padding: "1rem",
+          boxSizing: "border-box"
+        }}
       >
-        <h2 id={titleId} className="modal-title">
-          {mode === "add" ? "Add task" : "View / edit task"}
-        </h2>
-        <form className="modal-form" onSubmit={handleSubmit}>
+        <div className="modal-panel" style={{ flex: "1 1 300px", maxWidth: '100%' }}>
+          <h2 id={titleId} className="modal-title">
+            {mode === "add" ? "Add task" : "View / edit task"}
+          </h2>
+          <form className="modal-form" onSubmit={handleSubmit}>
           <label className="field">
             <span>Task name</span>
             <input
@@ -164,14 +220,32 @@ export function TaskModal({
               required
             />
           </label>
-          <label className="field">
-            <span>Description</span>
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              rows={3}
-            />
-          </label>
+          {!isWide && (
+            <label className="field">
+              <span>Description</span>
+              {editingDesc ? (
+                <textarea
+                  ref={descRef}
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  onBlur={() => setEditingDesc(false)}
+                  rows={3}
+                />
+              ) : (
+                <div
+                  className="description-view"
+                  onClick={() => setEditingDesc(true)}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setEditingDesc(true);
+                    }
+                  }}
+                >{renderDescription(form.description)}</div>
+              )}
+            </label>
+          )}
           <label className="field">
             <span>Estimated time (hours)</span>
             <input
@@ -290,6 +364,42 @@ export function TaskModal({
             </div>
           </div>
         </form>
+        </div>
+        
+        {isWide && (
+          <div
+            className="modal-panel"
+            style={{ flex: "1 1 300px", display: "flex", flexDirection: "column" }}
+          >
+            <h2 className="modal-title">Description</h2>
+            <div style={{ display: "flex", flexDirection: "column", flex: 1 }} class="field">
+              {editingDesc ? (
+                <textarea
+                  ref={descRef}
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  onBlur={() => setEditingDesc(false)}
+                  style={{ flex: 1, resize: "none", minHeight: "150px", boxSizing: "border-box", width: "100%" }}
+                />
+              ) : (
+                <div
+                  className="description-view"
+                  onClick={() => setEditingDesc(true)}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setEditingDesc(true);
+                    }
+                  }}
+                  style={{ flex: 1, overflowY: "auto", minHeight: "150px" }}
+                >
+                  {renderDescription(form.description)}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
