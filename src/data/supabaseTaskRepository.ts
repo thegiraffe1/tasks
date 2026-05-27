@@ -6,6 +6,7 @@ type DbTask = {
   id: string;
   user_id: string | null;
   name: string;
+  description: string | null;
   estimated_time: number;
   real_time: number;
   deadline: string | null;
@@ -18,6 +19,7 @@ type DbTask = {
 type DbUpsert = {
   id: string;
   name: string;
+  description: string | null;
   estimated_time: number;
   real_time: number;
   deadline: string | null;
@@ -37,6 +39,7 @@ function fromRow(row: DbTask): Task {
   return {
     id: row.id,
     name: row.name,
+    description: row.description ?? undefined,
     estimatedTime: row.estimated_time,
     realTime: row.real_time,
     deadline: row.deadline,
@@ -51,6 +54,7 @@ function toUpsertPayload(task: Task): DbUpsert {
   return {
     id: task.id,
     name: task.name,
+    description: task.description ?? null,
     estimated_time: task.estimatedTime,
     real_time: task.realTime,
     deadline: task.deadline,

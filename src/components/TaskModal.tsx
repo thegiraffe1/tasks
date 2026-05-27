@@ -8,6 +8,7 @@ export type TaskModalProps = {
   onClose: () => void;
   onCreate: (input: {
     name: string;
+    description: string;
     estimatedTime: number;
     deadline: string | null;
     priority: Priority;
@@ -19,6 +20,7 @@ export type TaskModalProps = {
 function newEmptyForm() {
   return {
     name: "",
+    description: "",
     estimatedTime: "0",
     realTime: "0",
     deadline: "",
@@ -47,6 +49,7 @@ export function TaskModal({
     if (mode === "edit" && task) {
       setForm({
         name: task.name,
+        description: task.description ?? "",
         estimatedTime: String(task.estimatedTime),
         realTime: String(task.realTime),
         deadline: task.deadline ?? "",
@@ -94,6 +97,7 @@ export function TaskModal({
       if (mode === "add") {
         await onCreate({
           name: form.name,
+          description: form.description.trim(),
           estimatedTime: parseNum(form.estimatedTime),
           deadline: form.deadline.trim() === "" ? null : form.deadline,
           priority: form.priority,
@@ -105,6 +109,7 @@ export function TaskModal({
         await onSaveEdit({
           ...task,
           name: form.name.trim() || "Untitled",
+          description: form.description.trim() || undefined,
           estimatedTime: parseNum(form.estimatedTime),
           realTime: parseNum(form.realTime),
           deadline: form.deadline.trim() === "" ? null : form.deadline,
@@ -157,6 +162,14 @@ export function TaskModal({
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               required
+            />
+          </label>
+          <label className="field">
+            <span>Description</span>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              rows={3}
             />
           </label>
           <label className="field">

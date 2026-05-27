@@ -89,6 +89,7 @@ export function useTasks() {
   const addTask = useCallback(
     async (input: {
       name: string;
+      description?: string;
       estimatedTime: number;
       deadline: string | null;
       priority: Priority;
@@ -96,6 +97,7 @@ export function useTasks() {
       const task: Task = {
         id: createTaskId(),
         name: input.name.trim() || "Untitled",
+        description: input.description?.trim() || undefined,
         estimatedTime: input.estimatedTime,
         realTime: 0,
         deadline: input.deadline,

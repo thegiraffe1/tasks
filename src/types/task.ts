@@ -3,6 +3,7 @@ export type Priority = "High" | "Medium" | "Low";
 export type Task = {
   id: string;
   name: string;
+  description?: string;
   estimatedTime: number;
   realTime: number;
   deadline: string | null;
