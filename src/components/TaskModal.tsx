@@ -372,7 +372,7 @@ export function TaskModal({
             style={{ flex: "1 1 300px", display: "flex", flexDirection: "column" }}
           >
             <h2 className="modal-title">Description</h2>
-            <div style={{ display: "flex", flexDirection: "column", flex: 1 }} class="field">
+            <div style={{ display: "flex", flexDirection: "column", flex: 1 }} className="field">
               {editingDesc ? (
                 <textarea
                   ref={descRef}
