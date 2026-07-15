@@ -11,6 +11,7 @@ import { AvailabilityTable } from "@/components/AvailabilityTable";
 import { AvailabilityModal } from "@/components/AvailabilityModal";
 import { CalendarView } from "@/components/CalendarView";
 import { UndoBanner } from "@/components/UndoBanner";
+import { AiTaskModal } from "@/components/AiTaskModal";
 
 type UndoKind = "done" | "missed";
 
@@ -51,6 +52,9 @@ export default function App() {
 
   // Availability modal state
   const [availModalOpen, setAvailModalOpen] = useState(false);
+  
+  // AI Task modal state
+  const [aiModalOpen, setAiModalOpen] = useState(false);
   const [availModalMode, setAvailModalMode] = useState<"add" | "edit">("add");
   const [modalAvail, setModalAvail] = useState<Availability | null>(null);
 
@@ -217,19 +221,31 @@ export default function App() {
           </p>
         </div>
         {activeTab !== "calendar" && (
-          <button
-            type="button"
-            className="btn primary add-task-btn"
-            onClick={onAddClick}
-            aria-label={activeTab === "tasks" ? "Add task" : "Add availability"}
-          >
-            <span className="add-task-label">
-              {activeTab === "tasks" ? "Add task" : "Add availability"}
-            </span>
-            <span className="add-task-plus" aria-hidden="true">
-              +
-            </span>
-          </button>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            {activeTab === "tasks" && (
+              <button
+                type="button"
+                className="btn add-with-ai-btn"
+                onClick={() => setAiModalOpen(true)}
+              >
+                <span className="add-task-label">Add with AI</span>
+                <span className="add-task-plus" aria-hidden="true">✨</span>
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn primary add-task-btn"
+              onClick={onAddClick}
+              aria-label={activeTab === "tasks" ? "Add task" : "Add availability"}
+            >
+              <span className="add-task-label">
+                {activeTab === "tasks" ? "Add task" : "Add availability"}
+              </span>
+              <span className="add-task-plus" aria-hidden="true">
+                +
+              </span>
+            </button>
+          </div>
         )}
       </header>
 
@@ -334,6 +350,16 @@ export default function App() {
         }}
         onSaveEdit={handleSaveAvailEdit}
         onDelete={availModalMode === "edit" ? removeAvailability : undefined}
+      />
+
+      <AiTaskModal
+        open={aiModalOpen}
+        onClose={() => setAiModalOpen(false)}
+        onSaveTasks={async (tasks) => {
+          for (const t of tasks) {
+            await addTask(t);
+          }
+        }}
       />
 
       <UndoBanner
