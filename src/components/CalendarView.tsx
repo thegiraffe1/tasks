@@ -275,7 +275,7 @@ export function CalendarView({ tasks, availabilities }: CalendarViewProps) {
                 ) : (
                   <>
                     {dayTasks.map(t => (
-                      <div key={t.id} className={`skeleton-task priority-${t.priority.toLowerCase()}`} title={t.name}>
+                      <div key={t.id} className={`skeleton-task priority-${t.priority.toLowerCase()} ${t.completion ? 'completed' : ''}`} title={t.name}>
                         {t.name}
                       </div>
                     ))}

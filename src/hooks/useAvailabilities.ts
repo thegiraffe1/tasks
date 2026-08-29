@@ -4,6 +4,7 @@ import { createAvailabilityId } from "@/types/availability";
 import { createLocalAvailabilityRepository } from "@/data/localAvailabilityRepository";
 import { createSupabaseAvailabilityRepository } from "@/data/supabaseAvailabilityRepository";
 import { getSupabaseClient } from "@/lib/supabaseClient";
+import { sortAvailabilities } from "@/lib/sortAvailabilities";
 
 function createRepository() {
   const supabase = getSupabaseClient();
@@ -35,6 +36,11 @@ export function useAvailabilities() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  const sortedAvailabilities = useMemo(
+    () => sortAvailabilities(availabilities, new Date()),
+    [availabilities],
+  );
 
   const persistUpsert = useCallback(
     async (availability: Availability) => {
@@ -98,6 +104,7 @@ export function useAvailabilities() {
 
   return {
     availabilities,
+    sortedAvailabilities,
     loading,
     error,
     refresh,

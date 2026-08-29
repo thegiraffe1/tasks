@@ -48,10 +48,14 @@ export function DayModal({
   }, [open, onClose]);
 
   const cumulativeStats = useMemo(() => {
-    if (!dateStr) return { taskTime: 0, availTime: 0 };
+    if (!dateStr) return { taskTime: 0, dayTaskTime: 0, availTime: 0 };
 
     const cumulativeTaskTime = tasks
       .filter(t => !t.completion && !t.missed && t.deadline && t.deadline <= dateStr)
+      .reduce((sum, t) => sum + remainingEstimateHours(t), 0);
+
+    const dayTaskTime = tasks
+      .filter(t => !t.completion && !t.missed && t.deadline === dateStr)
       .reduce((sum, t) => sum + remainingEstimateHours(t), 0);
 
     // Cumulative availability up to this day
@@ -59,8 +63,18 @@ export function DayModal({
       .filter(a => a.date && a.date <= dateStr)
       .reduce((sum, a) => sum + getDynamicAvailableTimeHours(a, now), 0);
 
-    return { taskTime: cumulativeTaskTime, availTime: cumulativeAvailTime };
+    return { taskTime: cumulativeTaskTime, dayTaskTime, availTime: cumulativeAvailTime };
   }, [dateStr, tasks, availabilities, now]);
+
+  const currentDayTasks = useMemo(() => {
+    if (!dateStr) return [];
+    return tasks.filter(t => t.deadline === dateStr);
+  }, [dateStr, tasks]);
+
+  const previousIncompleteTasks = useMemo(() => {
+    if (!dateStr) return [];
+    return tasks.filter(t => !t.completion && !t.missed && t.deadline && t.deadline < dateStr);
+  }, [dateStr, tasks]);
 
   if (!open || !dateStr) return null;
 
@@ -68,7 +82,6 @@ export function DayModal({
     if (e.target === e.currentTarget) onClose();
   };
 
-  const dayTasks = tasks.filter(t => t.deadline === dateStr);
   const dayAvails = availabilities.filter(a => a.date === dateStr);
   
   const displayDate = formatAvailabilityDate(dateStr, false);
@@ -101,7 +114,7 @@ export function DayModal({
             className={`btn ${mobileTab === 'tasks' ? 'primary' : 'secondary'} btn-sm`}
             onClick={() => setMobileTab('tasks')}
           >
-            Tasks ({dayTasks.length})
+            Tasks ({currentDayTasks.length + previousIncompleteTasks.length})
           </button>
           <button 
             className={`btn ${mobileTab === 'avail' ? 'primary' : 'secondary'} btn-sm`}
@@ -115,18 +128,34 @@ export function DayModal({
           <div className={`day-modal-pane tasks-pane ${mobileTab === 'tasks' ? 'active' : ''}`}>
             <h3>Tasks</h3>
             <div className="pane-scroll">
-              {dayTasks.length === 0 ? (
+              {currentDayTasks.length === 0 ? (
                 <p className="muted">No tasks for this day.</p>
               ) : (
                 <ul className="condensed-list">
-                  {dayTasks.map(t => (
-                    <li key={t.id} className={`condensed-item priority-${t.priority.toLowerCase()}`}>
+                  {currentDayTasks.map(t => (
+                    <li key={t.id} className={`condensed-item priority-${t.priority.toLowerCase()} ${t.completion ? 'completed' : ''}`}>
                       <span className="item-name">{t.name}</span>
                       <span className="item-detail">{t.estimatedTime}h</span>
                     </li>
                   ))}
                 </ul>
               )}
+
+              <hr className="day-modal-hr" />
+
+              {previousIncompleteTasks.length > 0 ? (
+                <div className="previous-tasks-section">
+                  <h4 className="pane-subheading">Previous Incomplete Tasks</h4>
+                  <ul className="condensed-list">
+                    {previousIncompleteTasks.map(t => (
+                      <li key={t.id} className={`condensed-item priority-${t.priority.toLowerCase()}`}>
+                        <span className="item-name">{t.name}</span>
+                        <span className="item-detail">{t.estimatedTime}h</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -156,7 +185,7 @@ export function DayModal({
         <div className="day-modal-footer">
           <div className="cumulative-stat">
             <span className="stat-label">Cumulative Task Est:</span>
-            <span className="stat-value">{formatCumulative(cumulativeStats.taskTime)}h</span>
+            <span className="stat-value">{formatCumulative(cumulativeStats.taskTime)}h / {formatCumulative(cumulativeStats.dayTaskTime)}h</span>
           </div>
           <div className="cumulative-stat">
             <span className="stat-label">Cumulative Avail:</span>

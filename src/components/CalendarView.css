@@ -138,6 +138,14 @@
   border-left: 2px solid #22c55e;
 }
 
+.skeleton-task.completed {
+  opacity: 0.5;
+  background-color: #f1f5f9;
+  color: #64748b;
+  border-left: 2px solid #94a3b8;
+  text-decoration: line-through;
+}
+
 .skeleton-task.more-indicator,
 .skeleton-slot.more-indicator {
   background-color: #e2e8f0;

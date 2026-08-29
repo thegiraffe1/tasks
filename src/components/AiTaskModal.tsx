@@ -20,22 +20,57 @@ export function AiTaskModal({ open, onClose, onSaveTasks }: AiTaskModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Check if API Key is configured in environment
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  // Check if API Key is configured in localStorage or environment
+  const [apiKey, setApiKey] = useState(() => {
+    return localStorage.getItem("VITE_GEMINI_API_KEY") || import.meta.env.VITE_GEMINI_API_KEY || "";
+  });
+  const [showKeyInput, setShowKeyInput] = useState(false);
+  const [tempKey, setTempKey] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    if (!apiKey) {
+    const currentKey = localStorage.getItem("VITE_GEMINI_API_KEY") || import.meta.env.VITE_GEMINI_API_KEY || "";
+    setApiKey(currentKey);
+    setTempKey(currentKey);
+
+    if (!currentKey) {
+      setShowKeyInput(true);
       setError(
-        "Gemini API key is not configured. Please define the VITE_GEMINI_API_KEY variable in your .env file to enable this feature."
+        "Gemini API key is not configured. Please enter your API key to enable AI generation."
       );
     } else {
+      setShowKeyInput(false);
       setError(null);
     }
     setPrompt("");
     setDraftTasks([]);
     setLoading(false);
-  }, [open, apiKey]);
+  }, [open]);
+
+  const handleSaveKey = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedKey = tempKey.trim();
+    if (!trimmedKey) {
+      localStorage.removeItem("VITE_GEMINI_API_KEY");
+      setApiKey("");
+      setError("Gemini API key is not configured. Please enter your API key to enable AI generation.");
+      setShowKeyInput(true);
+      return;
+    }
+    localStorage.setItem("VITE_GEMINI_API_KEY", trimmedKey);
+    setApiKey(trimmedKey);
+    setShowKeyInput(false);
+    setError(null);
+  };
+
+  const handleCancelKeyEdit = () => {
+    if (apiKey) {
+      setTempKey(apiKey);
+      setShowKeyInput(false);
+      setError(null);
+    }
+  };
 
   useEffect(() => {
     if (open && !loading && !draftTasks.length && textareaRef.current) {
@@ -262,15 +297,122 @@ Do not write any markdown code blocks or explanations in your response. Return r
           <h2 className="modal-title" style={{ margin: 0, fontSize: "1.4rem", fontWeight: 700, background: "linear-gradient(135deg, #4f46e5, #9333ea)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
             ✨ Add Tasks with AI
           </h2>
-          <button
-            type="button"
-            className="btn secondary btn-sm"
-            onClick={onClose}
-            style={{ borderRadius: "50%", width: "2rem", height: "2rem", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
-          >
-            ✕
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <button
+              type="button"
+              className={`btn secondary btn-sm ai-options-btn ${showKeyInput ? "active" : ""}`}
+              onClick={() => setShowKeyInput(!showKeyInput)}
+              title="API Key Settings"
+              style={{
+                borderRadius: "50%",
+                width: "2rem",
+                height: "2rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 0,
+                fontSize: "1.1rem"
+              }}
+            >
+              ⚙️
+            </button>
+            <button
+              type="button"
+              className="btn secondary btn-sm"
+              onClick={onClose}
+              style={{ borderRadius: "50%", width: "2rem", height: "2rem", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+            >
+              ✕
+            </button>
+          </div>
         </div>
+
+        {showKeyInput && (
+          <form
+            onSubmit={handleSaveKey}
+            className="ai-key-config-pane"
+            style={{
+              padding: "1rem",
+              borderRadius: "12px",
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.75rem",
+              marginTop: "-0.5rem"
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+              <label htmlFor="gemini-api-key" style={{ fontSize: "0.85rem", fontWeight: 600, color: "#475569", display: "block", textAlign: "left" }}>
+                Gemini API Key
+              </label>
+              <div style={{ display: "flex", gap: "0.5rem", position: "relative" }}>
+                <input
+                  id="gemini-api-key"
+                  type={showPassword ? "text" : "password"}
+                  value={tempKey}
+                  onChange={(e) => setTempKey(e.target.value)}
+                  placeholder="Enter your VITE_GEMINI_API_KEY..."
+                  style={{
+                    flex: 1,
+                    padding: "0.5rem 2.5rem 0.5rem 0.75rem",
+                    borderRadius: "8px",
+                    border: "1px solid #cbd5e1",
+                    fontSize: "0.9rem",
+                    width: "100%",
+                    boxSizing: "border-box"
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: "absolute",
+                    right: "0.5rem",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "0.9rem",
+                    padding: "0.25rem"
+                  }}
+                  title={showPassword ? "Hide key" : "Show key"}
+                >
+                  {showPassword ? "👁️" : "👁️‍🗨️"}
+                </button>
+              </div>
+              <p style={{ fontSize: "0.75rem", color: "#64748b", margin: 0, textAlign: "left" }}>
+                This key is stored locally in your browser's <code>localStorage</code> and is never sent to any server other than Google's Gemini API.
+              </p>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+              {apiKey && (
+                <button
+                  type="button"
+                  className="btn secondary btn-sm"
+                  onClick={handleCancelKeyEdit}
+                  style={{ padding: "0.35rem 0.75rem", fontSize: "0.85rem" }}
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                type="submit"
+                className="btn primary btn-sm"
+                style={{
+                  padding: "0.35rem 1rem",
+                  fontSize: "0.85rem",
+                  background: "linear-gradient(135deg, #4f46e5, #9333ea)",
+                  border: "none",
+                  color: "#ffffff"
+                }}
+              >
+                Save Key
+              </button>
+            </div>
+          </form>
+        )}
 
         {error && (
           <div className="banner error" role="alert" style={{ whiteSpace: "pre-wrap", margin: 0 }}>

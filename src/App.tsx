@@ -33,6 +33,7 @@ export default function App() {
 
   const {
     availabilities,
+    sortedAvailabilities,
     loading: availLoading,
     error: availError,
     addAvailability,
@@ -311,7 +312,7 @@ export default function App() {
                 <p className="muted">No availabilities yet. Add one to get started.</p>
               ) : null}
               <AvailabilityTable
-                availabilities={availabilities}
+                availabilities={sortedAvailabilities}
                 tasksByDate={tasksByDate}
                 onOpenAvailability={openAvailEdit}
                 onUpdateField={(id, patch) => void updateAvailability(id, patch)}
