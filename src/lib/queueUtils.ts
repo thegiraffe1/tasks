@@ -5,13 +5,13 @@ export const DEFAULT_QUEUE = "Tasks";
 
 /** Priority weights for queue ordering formula */
 export const PRIORITY_WEIGHTS: Record<Priority, number> = {
-  High: 2,
+  High: 4,
   Medium: 1,
-  Low: 0.5,
+  Low: 0.25,
 };
 
-/** Multiplier base for overdue days: * 2^(overdue days) */
-export const OVERDUE_EXPONENT_BASE = 2;
+/** Multiplier base for overdue days: * 10^(overdue days) */
+export const OVERDUE_EXPONENT_BASE = 10;
 
 /** Fallback days until due when task has no specified deadline */
 export const DEFAULT_DAYS_UNTIL_DUE = 14;
@@ -54,7 +54,7 @@ export function calculateTaskScore(task: Task, today: Date = new Date()): number
     return baseScore * Math.pow(OVERDUE_EXPONENT_BASE, overdueDays);
   } else {
     const daysUntilDue = Math.max(days, 0.1); // prevent divide-by-zero
-    return baseScore * (1 / daysUntilDue);
+    return baseScore * (10 / daysUntilDue);
   }
 }
 
