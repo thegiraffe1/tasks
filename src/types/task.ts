@@ -8,6 +8,7 @@ export type Task = {
   realTime: number;
   deadline: string | null;
   priority: Priority;
+  queue?: string;
   completion: boolean;
   missed: boolean;
   updatedAt: string;

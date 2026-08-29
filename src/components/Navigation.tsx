@@ -1,4 +1,4 @@
-export type TabKey = 'tasks' | 'availability' | 'calendar';
+export type TabKey = 'tasks' | 'queues' | 'availability' | 'calendar';
 
 interface NavigationProps {
   currentTab: TabKey;
@@ -13,6 +13,12 @@ export function Navigation({ currentTab, onTabChange }: NavigationProps) {
         onClick={() => onTabChange('tasks')}
       >
         Tasks
+      </button>
+      <button 
+        className={`tab-btn ${currentTab === 'queues' ? 'active' : ''}`}
+        onClick={() => onTabChange('queues')}
+      >
+        Queues
       </button>
       <button 
         className={`tab-btn ${currentTab === 'availability' ? 'active' : ''}`}

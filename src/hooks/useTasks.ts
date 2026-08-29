@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Task } from "@/types/task";
+import type { Priority, Task } from "@/types/task";
 import { createTaskId, nowIso } from "@/types/task";
-import type { Priority } from "@/types/task";
 import { createLocalTaskRepository } from "@/data/localTaskRepository";
 import { createSupabaseTaskRepository } from "@/data/supabaseTaskRepository";
 import { getSupabaseClient } from "@/lib/supabaseClient";
 import { sortTasks } from "@/lib/sortTasks";
+import { DEFAULT_QUEUE } from "@/lib/queueUtils";
 
 function createRepository() {
   const supabase = getSupabaseClient();
@@ -13,12 +13,16 @@ function createRepository() {
   return createLocalTaskRepository();
 }
 
-/** Cannot be both done and missed: done wins if both true after merge. */
-function normalizeDoneMissed(task: Task): Task {
-  if (task.completion && task.missed) {
-    return { ...task, missed: false };
+/** Ensure queue defaults to DEFAULT_QUEUE ("Tasks") if absent or empty */
+function normalizeTask(task: Task): Task {
+  let normalized = { ...task };
+  if (!normalized.queue || !normalized.queue.trim()) {
+    normalized.queue = DEFAULT_QUEUE;
   }
-  return task;
+  if (normalized.completion && normalized.missed) {
+    normalized.missed = false;
+  }
+  return normalized;
 }
 
 function applyDoneMissedPatch(
@@ -43,7 +47,7 @@ export function useTasks() {
     setError(null);
     try {
       const list = await repo.list();
-      setTasks(list);
+      setTasks(list.map(normalizeTask));
     } catch (e) {
       setError(e instanceof Error ? e.message : (e as any)?.message || String(e));
     } finally {
@@ -64,7 +68,7 @@ export function useTasks() {
     async (task: Task) => {
       setError(null);
       try {
-        await repo.upsert(task);
+        await repo.upsert(normalizeTask(task));
         await refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : (e as any)?.message || String(e));
@@ -93,6 +97,7 @@ export function useTasks() {
       estimatedTime: number;
       deadline: string | null;
       priority: Priority;
+      queue?: string;
     }) => {
       const task: Task = {
         id: createTaskId(),
@@ -102,6 +107,7 @@ export function useTasks() {
         realTime: 0,
         deadline: input.deadline,
         priority: input.priority,
+        queue: input.queue?.trim() || DEFAULT_QUEUE,
         completion: false,
         missed: false,
         updatedAt: nowIso(),
@@ -116,7 +122,7 @@ export function useTasks() {
       const prev = tasksRef.current.find((t) => t.id === id);
       if (!prev) return;
       const merged = applyDoneMissedPatch(patch);
-      const next = normalizeDoneMissed({
+      const next = normalizeTask({
         ...prev,
         ...merged,
         updatedAt: nowIso(),
@@ -129,7 +135,7 @@ export function useTasks() {
   const replaceTask = useCallback(
     async (task: Task) => {
       await persistUpsert(
-        normalizeDoneMissed({ ...task, updatedAt: nowIso() }),
+        normalizeTask({ ...task, updatedAt: nowIso() }),
       );
     },
     [persistUpsert],

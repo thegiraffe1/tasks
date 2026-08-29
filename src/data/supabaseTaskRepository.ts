@@ -11,6 +11,7 @@ type DbTask = {
   real_time: number;
   deadline: string | null;
   priority: string;
+  queue?: string | null;
   completion: boolean;
   missed: boolean;
   updated_at: string;
@@ -24,6 +25,7 @@ type DbUpsert = {
   real_time: number;
   deadline: string | null;
   priority: string;
+  queue: string;
   completion: boolean;
   missed: boolean;
   updated_at: string;
@@ -44,6 +46,7 @@ function fromRow(row: DbTask): Task {
     realTime: row.real_time,
     deadline: row.deadline,
     priority: p,
+    queue: row.queue || "Tasks",
     completion: row.completion,
     missed: row.missed,
     updatedAt: row.updated_at,
@@ -59,6 +62,7 @@ function toUpsertPayload(task: Task): DbUpsert {
     real_time: task.realTime,
     deadline: task.deadline,
     priority: task.priority,
+    queue: task.queue || "Tasks",
     completion: task.completion,
     missed: task.missed,
     updated_at: task.updatedAt,

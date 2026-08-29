@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Task } from "@/types/task";
 import type { Availability } from "@/types/availability";
 import { isSupabaseConfigured } from "@/lib/supabaseClient";
@@ -10,6 +10,7 @@ import { TaskModal } from "@/components/TaskModal";
 import { AvailabilityTable } from "@/components/AvailabilityTable";
 import { AvailabilityModal } from "@/components/AvailabilityModal";
 import { CalendarView } from "@/components/CalendarView";
+import { QueueView } from "@/components/QueueView";
 import { UndoBanner } from "@/components/UndoBanner";
 import { AiTaskModal } from "@/components/AiTaskModal";
 
@@ -44,7 +45,7 @@ export default function App() {
 
   const { tasksByDate } = useAllocations();
 
-  const [activeTab, setActiveTab] = useState<"tasks" | "availability" | "calendar">("tasks");
+  const [activeTab, setActiveTab] = useState<"tasks" | "queues" | "availability" | "calendar">("tasks");
 
   // Task modal state
   const [taskModalOpen, setTaskModalOpen] = useState(false);
@@ -67,6 +68,10 @@ export default function App() {
   });
 
   const usingSupabase = isSupabaseConfigured();
+
+  const existingQueues = useMemo(() => {
+    return Array.from(new Set(sortedTasks.map((t) => t.queue || "Tasks")));
+  }, [sortedTasks]);
 
   const dismissUndo = useCallback(() => {
     undoStackRef.current = [];
@@ -203,12 +208,14 @@ export default function App() {
   };
 
   const onAddClick = () => {
-    if (activeTab === "tasks") {
+    if (activeTab === "tasks" || activeTab === "queues") {
       openTaskAdd();
     } else if (activeTab === "availability") {
       openAvailAdd();
     }
   };
+
+  const isTaskTab = activeTab === "tasks" || activeTab === "queues";
 
   return (
     <div className={undoUi.open ? "app app--undo" : "app"}>
@@ -223,7 +230,7 @@ export default function App() {
         </div>
         {activeTab !== "calendar" && (
           <div style={{ display: "flex", gap: "0.5rem" }}>
-            {activeTab === "tasks" && (
+            {isTaskTab && (
               <button
                 type="button"
                 className="btn add-with-ai-btn"
@@ -237,10 +244,10 @@ export default function App() {
               type="button"
               className="btn primary add-task-btn"
               onClick={onAddClick}
-              aria-label={activeTab === "tasks" ? "Add task" : "Add availability"}
+              aria-label={isTaskTab ? "Add task" : "Add availability"}
             >
               <span className="add-task-label">
-                {activeTab === "tasks" ? "Add task" : "Add availability"}
+                {isTaskTab ? "Add task" : "Add availability"}
               </span>
               <span className="add-task-plus" aria-hidden="true">
                 +
@@ -256,6 +263,12 @@ export default function App() {
           onClick={() => setActiveTab('tasks')}
         >
           Tasks
+        </button>
+        <button
+          style={{ fontWeight: activeTab === 'queues' ? 'bold' : 'normal', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem' }}
+          onClick={() => setActiveTab('queues')}
+        >
+          Queues
         </button>
         <button
           style={{ fontWeight: activeTab === 'availability' ? 'bold' : 'normal', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem' }}
@@ -302,6 +315,22 @@ export default function App() {
         </>
       )}
 
+      {activeTab === "queues" && (
+        <>
+          {tasksLoading ? (
+            <p className="muted">Loading tasks…</p>
+          ) : (
+            <QueueView
+              tasks={sortedTasks}
+              onOpenTask={openTaskEdit}
+              onCompletionChange={(id, checked) =>
+                void handleCompletionChange(id, checked)
+              }
+            />
+          )}
+        </>
+      )}
+
       {activeTab === "availability" && (
         <>
           {availLoading ? (
@@ -333,6 +362,7 @@ export default function App() {
         open={taskModalOpen}
         mode={taskModalMode}
         task={modalTask}
+        existingQueues={existingQueues}
         onClose={() => setTaskModalOpen(false)}
         onCreate={async (input) => {
           await addTask(input);

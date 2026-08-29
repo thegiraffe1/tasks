@@ -1,10 +1,12 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { Priority, Task } from "@/types/task";
+import { DEFAULT_QUEUE } from "@/lib/queueUtils";
 
 export type TaskModalProps = {
   open: boolean;
   mode: "add" | "edit";
   task: Task | null;
+  existingQueues?: string[];
   onClose: () => void;
   onCreate: (input: {
     name: string;
@@ -12,6 +14,7 @@ export type TaskModalProps = {
     estimatedTime: number;
     deadline: string | null;
     priority: Priority;
+    queue: string;
   }) => Promise<void>;
   onSaveEdit: (task: Task) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
@@ -24,7 +27,8 @@ function newEmptyForm() {
     estimatedTime: "0",
     realTime: "0",
     deadline: "",
-    priority: "Medium" as Priority,
+    priority: "High" as Priority,
+    queue: DEFAULT_QUEUE,
     completion: false,
     missed: false,
   };
@@ -34,6 +38,7 @@ export function TaskModal({
   open,
   mode,
   task,
+  existingQueues = [DEFAULT_QUEUE],
   onClose,
   onCreate,
   onSaveEdit,
@@ -44,12 +49,19 @@ export function TaskModal({
   const descRef = useRef<HTMLTextAreaElement>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(newEmptyForm);
+  const [isCreatingNewQueue, setIsCreatingNewQueue] = useState(false);
+  const [newQueueName, setNewQueueName] = useState("");
   const [editingDesc, setEditingDesc] = useState(false);
   const [isWide, setIsWide] = useState(true);
 
+  const availableQueues = useMemo(() => {
+    const set = new Set<string>([DEFAULT_QUEUE, ...existingQueues]);
+    if (task?.queue) set.add(task.queue);
+    return Array.from(set).filter(Boolean);
+  }, [existingQueues, task]);
+
   useEffect(() => {
     const checkWidth = () => {
-      // This breakpoint is a bit arbitrary, chosen to be wider than two narrow panels.
       setIsWide(window.innerWidth > 768);
     };
 
@@ -68,12 +80,17 @@ export function TaskModal({
         realTime: String(task.realTime),
         deadline: task.deadline ?? "",
         priority: task.priority,
+        queue: task.queue || DEFAULT_QUEUE,
         completion: task.completion,
         missed: task.missed,
       });
+      setIsCreatingNewQueue(false);
+      setNewQueueName("");
       setEditingDesc(false);
     } else {
       setForm(newEmptyForm());
+      setIsCreatingNewQueue(false);
+      setNewQueueName("");
       setEditingDesc(false);
     }
   }, [open, mode, task]);
@@ -137,6 +154,10 @@ export function TaskModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    const finalQueue = isCreatingNewQueue
+      ? newQueueName.trim() || DEFAULT_QUEUE
+      : form.queue.trim() || DEFAULT_QUEUE;
+
     try {
       if (mode === "add") {
         await onCreate({
@@ -145,6 +166,7 @@ export function TaskModal({
           estimatedTime: parseNum(form.estimatedTime),
           deadline: form.deadline.trim() === "" ? null : form.deadline,
           priority: form.priority,
+          queue: finalQueue,
         });
       } else if (task) {
         const completion = form.completion;
@@ -158,6 +180,7 @@ export function TaskModal({
           realTime: parseNum(form.realTime),
           deadline: form.deadline.trim() === "" ? null : form.deadline,
           priority: form.priority,
+          queue: finalQueue,
           completion,
           missed,
         });
@@ -212,160 +235,193 @@ export function TaskModal({
             {mode === "add" ? "Add task" : "View / edit task"}
           </h2>
           <form className="modal-form" onSubmit={handleSubmit}>
-          <label className="field">
-            <span>Task name</span>
-            <input
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              required
-            />
-          </label>
-          {!isWide && (
             <label className="field">
-              <span>Description</span>
-              {editingDesc ? (
-                <textarea
-                  ref={descRef}
-                  value={form.description}
-                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  onBlur={() => setEditingDesc(false)}
-                  rows={3}
-                />
-              ) : (
-                <div
-                  className="description-view"
-                  onClick={() => setEditingDesc(true)}
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setEditingDesc(true);
-                    }
-                  }}
-                >{renderDescription(form.description)}</div>
-              )}
+              <span>Task name</span>
+              <input
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                required
+              />
             </label>
-          )}
-          <label className="field">
-            <span>Estimated time (hours)</span>
-            <input
-              type="number"
-              step="any"
-              min={0}
-              value={form.estimatedTime}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, estimatedTime: e.target.value }))
-              }
-              required
-            />
-          </label>
-          {mode === "edit" ? (
             <label className="field">
-              <span>Real time (hours)</span>
+              <span>Queue</span>
+              <select
+                value={isCreatingNewQueue ? "__new__" : form.queue}
+                onChange={(e) => {
+                  if (e.target.value === "__new__") {
+                    setIsCreatingNewQueue(true);
+                  } else {
+                    setIsCreatingNewQueue(false);
+                    setForm((f) => ({ ...f, queue: e.target.value }));
+                  }
+                }}
+              >
+                {availableQueues.map((q) => (
+                  <option key={q} value={q}>
+                    {q}
+                  </option>
+                ))}
+                <option value="__new__">+ Create new queue...</option>
+              </select>
+            </label>
+            {isCreatingNewQueue && (
+              <label className="field">
+                <span>New queue name</span>
+                <input
+                  type="text"
+                  placeholder="e.g. ECE391, Solar Car, Autonomy"
+                  value={newQueueName}
+                  onChange={(e) => setNewQueueName(e.target.value)}
+                  required
+                />
+              </label>
+            )}
+            {!isWide && (
+              <label className="field">
+                <span>Description</span>
+                {editingDesc ? (
+                  <textarea
+                    ref={descRef}
+                    value={form.description}
+                    onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                    onBlur={() => setEditingDesc(false)}
+                    rows={3}
+                  />
+                ) : (
+                  <div
+                    className="description-view"
+                    onClick={() => setEditingDesc(true)}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setEditingDesc(true);
+                      }
+                    }}
+                  >{renderDescription(form.description)}</div>
+                )}
+              </label>
+            )}
+            <label className="field">
+              <span>Estimated time (hours)</span>
               <input
                 type="number"
                 step="any"
                 min={0}
-                value={form.realTime}
+                value={form.estimatedTime}
                 onChange={(e) =>
-                  setForm((f) => ({ ...f, realTime: e.target.value }))
+                  setForm((f) => ({ ...f, estimatedTime: e.target.value }))
                 }
                 required
               />
             </label>
-          ) : null}
-          <label className="field">
-            <span>Deadline</span>
-            <input
-              type="date"
-              value={form.deadline}
-              onFocus={(e) => {
-                const el = e.currentTarget;
-                if (typeof el.showPicker === "function") {
-                  try {
-                    el.showPicker();
-                  } catch {
-                    /* ignore */
-                  }
-                }
-              }}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, deadline: e.target.value }))
-              }
-            />
-          </label>
-          <label className="field">
-            <span>Priority</span>
-            <select
-              className={`priority-select priority-select--${form.priority.toLowerCase()}`}
-              value={form.priority}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  priority: e.target.value as Priority,
-                }))
-              }
-            >
-              <option value="High">High</option>
-              <option value="Medium">Medium</option>
-              <option value="Low">Low</option>
-            </select>
-          </label>
-          {mode === "edit" ? (
-            <div className="field-row">
-              <label className="checkbox">
+            {mode === "edit" ? (
+              <label className="field">
+                <span>Real time (hours)</span>
                 <input
-                  type="checkbox"
-                  checked={form.completion}
+                  type="number"
+                  step="any"
+                  min={0}
+                  value={form.realTime}
                   onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      completion: e.target.checked,
-                      missed: e.target.checked ? false : f.missed,
-                    }))
+                    setForm((f) => ({ ...f, realTime: e.target.value }))
                   }
+                  required
                 />
-                <span>Completion</span>
               </label>
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={form.missed}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      missed: e.target.checked,
-                      completion: e.target.checked ? false : f.completion,
-                    }))
-                  }
-                />
-                <span>Missed</span>
-              </label>
-            </div>
-          ) : null}
-          <div className="modal-actions">
-            {mode === "edit" && onDelete ? (
-              <button
-                type="button"
-                className="btn danger"
-                disabled={saving}
-                onClick={() => void handleDelete()}
-              >
-                Delete
-              </button>
             ) : null}
-            <div className="modal-actions-right">
-              <button type="button" className="btn secondary" onClick={onClose}>
-                Cancel
-              </button>
-              <button type="submit" className="btn primary" disabled={saving}>
-                {saving ? "Saving…" : "Save"}
-              </button>
+            <label className="field">
+              <span>Deadline</span>
+              <input
+                type="date"
+                value={form.deadline}
+                onFocus={(e) => {
+                  const el = e.currentTarget;
+                  if (typeof el.showPicker === "function") {
+                    try {
+                      el.showPicker();
+                    } catch {
+                      /* ignore */
+                    }
+                  }
+                }}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, deadline: e.target.value }))
+                }
+              />
+            </label>
+            <label className="field">
+              <span>Priority</span>
+              <select
+                className={`priority-select priority-select--${form.priority.toLowerCase()}`}
+                value={form.priority}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    priority: e.target.value as Priority,
+                  }))
+                }
+              >
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </label>
+            {mode === "edit" ? (
+              <div className="field-row">
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={form.completion}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        completion: e.target.checked,
+                        missed: e.target.checked ? false : f.missed,
+                      }))
+                    }
+                  />
+                  <span>Completion</span>
+                </label>
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={form.missed}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        missed: e.target.checked,
+                        completion: e.target.checked ? false : f.completion,
+                      }))
+                    }
+                  />
+                  <span>Missed</span>
+                </label>
+              </div>
+            ) : null}
+            <div className="modal-actions">
+              {mode === "edit" && onDelete ? (
+                <button
+                  type="button"
+                  className="btn danger"
+                  disabled={saving}
+                  onClick={() => void handleDelete()}
+                >
+                  Delete
+                </button>
+              ) : null}
+              <div className="modal-actions-right">
+                <button type="button" className="btn secondary" onClick={onClose}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn primary" disabled={saving}>
+                  {saving ? "Saving…" : "Save"}
+                </button>
+              </div>
             </div>
-          </div>
-        </form>
+          </form>
         </div>
-        
+
         {isWide && (
           <div
             className="modal-panel"

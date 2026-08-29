@@ -117,7 +117,7 @@ For each task:
 - description: (string, optional) Details or description of the task.
 - estimatedTime: (number, optional) Estimated hours. Default to 0 if unknown.
 - deadline: (string, optional) Deadline in YYYY-MM-DD format. Calculate relative dates like 'tomorrow', 'next week', 'Friday', 'next Monday' using today's date ${todayStr}. If no deadline is specified or implied, use null.
-- priority: (string, required) Must be one of: "High", "Medium", "Low". Default is "Medium".
+- priority: (string, required) Must be one of: "High", "Medium", "Low". Default is "High".
 
 You must respond with raw JSON matching the following structure:
 {
@@ -127,7 +127,7 @@ You must respond with raw JSON matching the following structure:
       "description": "task description",
       "estimatedTime": 2,
       "deadline": "YYYY-MM-DD",
-      "priority": "Medium"
+      "priority": "High"
     }
   ]
 }
