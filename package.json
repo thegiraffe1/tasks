@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "test": "npx tsx --tsconfig ./tsconfig.app.json src/testQueueSort.ts",
+    "test": "npx tsx --tsconfig ./tsconfig.app.json src/testQueueSort.ts && npx tsx --tsconfig ./tsconfig.app.json src/testSubtasks.ts",
     "preview": "vite preview",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"

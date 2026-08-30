@@ -14,6 +14,8 @@ type DbTask = {
   queue?: string | null;
   completion: boolean;
   missed: boolean;
+  parent_id?: string | null;
+  subtask_index?: number | null;
   updated_at: string;
 };
 
@@ -28,6 +30,8 @@ type DbUpsert = {
   queue: string;
   completion: boolean;
   missed: boolean;
+  parent_id?: string | null;
+  subtask_index?: number | null;
   updated_at: string;
 };
 
@@ -49,6 +53,8 @@ function fromRow(row: DbTask): Task {
     queue: row.queue || "Tasks",
     completion: row.completion,
     missed: row.missed,
+    parentId: row.parent_id ?? null,
+    subtaskIndex: row.subtask_index ?? null,
     updatedAt: row.updated_at,
   };
 }
@@ -65,6 +71,8 @@ function toUpsertPayload(task: Task): DbUpsert {
     queue: task.queue || "Tasks",
     completion: task.completion,
     missed: task.missed,
+    parent_id: task.parentId ?? null,
+    subtask_index: task.subtaskIndex ?? null,
     updated_at: task.updatedAt,
   };
 }
@@ -84,6 +92,14 @@ export function createSupabaseTaskRepository(
     async upsert(task) {
       const row = toUpsertPayload(task);
       const { error } = await client.from("tasks").upsert(row, {
+        onConflict: "id",
+      });
+      if (error) throw error;
+    },
+    async upsertBatch(taskList) {
+      if (taskList.length === 0) return;
+      const rows = taskList.map(toUpsertPayload);
+      const { error } = await client.from("tasks").upsert(rows, {
         onConflict: "id",
       });
       if (error) throw error;

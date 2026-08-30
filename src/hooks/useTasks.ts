@@ -77,6 +77,25 @@ export function useTasks() {
     [repo, refresh],
   );
 
+  const persistUpsertBatch = useCallback(
+    async (taskList: Task[]) => {
+      setError(null);
+      try {
+        if (repo.upsertBatch) {
+          await repo.upsertBatch(taskList.map(normalizeTask));
+        } else {
+          for (const t of taskList) {
+            await repo.upsert(normalizeTask(t));
+          }
+        }
+        await refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : (e as any)?.message || String(e));
+      }
+    },
+    [repo, refresh],
+  );
+
   const persistRemove = useCallback(
     async (id: string) => {
       setError(null);
@@ -98,6 +117,8 @@ export function useTasks() {
       deadline: string | null;
       priority: Priority;
       queue?: string;
+      parentId?: string | null;
+      subtaskIndex?: number | null;
     }) => {
       const task: Task = {
         id: createTaskId(),
@@ -110,11 +131,46 @@ export function useTasks() {
         queue: input.queue?.trim() || DEFAULT_QUEUE,
         completion: false,
         missed: false,
+        parentId: input.parentId ?? null,
+        subtaskIndex: input.subtaskIndex ?? null,
         updatedAt: nowIso(),
       };
       await persistUpsert(task);
+      return task;
     },
     [persistUpsert],
+  );
+
+  const addTasksBatch = useCallback(
+    async (inputs: Array<{
+      name: string;
+      description?: string;
+      estimatedTime: number;
+      deadline: string | null;
+      priority: Priority;
+      queue?: string;
+      parentId?: string | null;
+      subtaskIndex?: number | null;
+    }>) => {
+      const createdTasks: Task[] = inputs.map((input) => ({
+        id: createTaskId(),
+        name: input.name.trim() || "Untitled",
+        description: input.description?.trim() || undefined,
+        estimatedTime: input.estimatedTime,
+        realTime: 0,
+        deadline: input.deadline,
+        priority: input.priority,
+        queue: input.queue?.trim() || DEFAULT_QUEUE,
+        completion: false,
+        missed: false,
+        parentId: input.parentId ?? null,
+        subtaskIndex: input.subtaskIndex ?? null,
+        updatedAt: nowIso(),
+      }));
+      await persistUpsertBatch(createdTasks);
+      return createdTasks;
+    },
+    [persistUpsertBatch],
   );
 
   const updateTask = useCallback(
@@ -141,6 +197,50 @@ export function useTasks() {
     [persistUpsert],
   );
 
+  const replaceTasksBatch = useCallback(
+    async (taskList: Task[]) => {
+      await persistUpsertBatch(
+        taskList.map((t) => normalizeTask({ ...t, updatedAt: nowIso() })),
+      );
+    },
+    [persistUpsertBatch],
+  );
+
+  const completeTaskWithRealTime = useCallback(
+    async (id: string, realTime: number) => {
+      const currentTask = tasksRef.current.find((t) => t.id === id);
+      if (!currentTask) return;
+
+      const updatedTask: Task = normalizeTask({
+        ...currentTask,
+        completion: true,
+        missed: false,
+        realTime,
+        updatedAt: nowIso(),
+      });
+
+      const toSave: Task[] = [updatedTask];
+
+      // If subtask, add recorded real time to parent task real time
+      if (currentTask.parentId) {
+        const parentTask = tasksRef.current.find((t) => t.id === currentTask.parentId);
+        if (parentTask) {
+          const newReal = Math.round(((parentTask.realTime || 0) + realTime) * 100) / 100;
+          toSave.push(
+            normalizeTask({
+              ...parentTask,
+              realTime: newReal,
+              updatedAt: nowIso(),
+            }),
+          );
+        }
+      }
+
+      await persistUpsertBatch(toSave);
+    },
+    [persistUpsertBatch],
+  );
+
   return {
     tasks,
     sortedTasks,
@@ -148,8 +248,11 @@ export function useTasks() {
     error,
     refresh,
     addTask,
+    addTasksBatch,
     updateTask,
     replaceTask,
+    replaceTasksBatch,
+    completeTaskWithRealTime,
     removeTask: persistRemove,
   };
 }

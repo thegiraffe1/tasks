@@ -7,6 +7,7 @@ import { useAvailabilities } from "@/hooks/useAvailabilities";
 import { useAllocations } from "@/hooks/useAllocations";
 import { TaskTable } from "@/components/TaskTable";
 import { TaskModal } from "@/components/TaskModal";
+import { TaskCompleteModal } from "@/components/TaskCompleteModal";
 import { AvailabilityTable } from "@/components/AvailabilityTable";
 import { AvailabilityModal } from "@/components/AvailabilityModal";
 import { CalendarView } from "@/components/CalendarView";
@@ -23,12 +24,16 @@ type UndoEntry = {
 
 export default function App() {
   const {
+    tasks,
     sortedTasks,
     loading: tasksLoading,
     error: tasksError,
     addTask,
+    addTasksBatch,
     updateTask,
     replaceTask,
+    replaceTasksBatch,
+    completeTaskWithRealTime,
     removeTask,
   } = useTasks();
 
@@ -52,6 +57,10 @@ export default function App() {
   const [taskModalMode, setTaskModalMode] = useState<"add" | "edit">("add");
   const [modalTask, setModalTask] = useState<Task | null>(null);
 
+  // Complete modal state
+  const [completeModalOpen, setCompleteModalOpen] = useState(false);
+  const [completeTask, setCompleteTask] = useState<Task | null>(null);
+
   // Availability modal state
   const [availModalOpen, setAvailModalOpen] = useState(false);
   
@@ -72,6 +81,11 @@ export default function App() {
   const existingQueues = useMemo(() => {
     return Array.from(new Set(sortedTasks.map((t) => t.queue || "Tasks")));
   }, [sortedTasks]);
+
+  const parentForCompleteModal = useMemo(() => {
+    if (!completeTask?.parentId) return null;
+    return tasks.find((t) => t.id === completeTask.parentId) ?? null;
+  }, [completeTask, tasks]);
 
   const dismissUndo = useCallback(() => {
     undoStackRef.current = [];
@@ -176,11 +190,30 @@ export default function App() {
     setAvailModalOpen(true);
   };
 
+  const handleTriggerComplete = useCallback((task: Task) => {
+    setCompleteTask(task);
+    setCompleteModalOpen(true);
+  }, []);
+
+  const handleConfirmComplete = useCallback(
+    async (taskId: string, realTime: number) => {
+      const prev = sortedTasks.find((t) => t.id === taskId);
+      await completeTaskWithRealTime(taskId, realTime);
+      if (prev) {
+        pushUndo(prev, "done", "Marked as done.");
+      }
+    },
+    [sortedTasks, completeTaskWithRealTime, pushUndo],
+  );
+
   const handleCompletionChange = async (id: string, checked: boolean) => {
     const prev = sortedTasks.find((t) => t.id === id);
-    await updateTask(id, { completion: checked });
-    if (prev && checked && !prev.completion) {
-      pushUndo(prev, "done", "Marked as done.");
+    if (checked) {
+      if (prev) {
+        handleTriggerComplete(prev);
+      }
+    } else {
+      await updateTask(id, { completion: false });
     }
   };
 
@@ -306,6 +339,7 @@ export default function App() {
                 onCompletionChange={(id, checked) =>
                   void handleCompletionChange(id, checked)
                 }
+                onTriggerComplete={handleTriggerComplete}
                 onMissedChange={(id, checked) =>
                   void handleMissedChange(id, checked)
                 }
@@ -326,6 +360,7 @@ export default function App() {
               onCompletionChange={(id, checked) =>
                 void handleCompletionChange(id, checked)
               }
+              onTriggerComplete={handleTriggerComplete}
             />
           )}
         </>
@@ -362,13 +397,28 @@ export default function App() {
         open={taskModalOpen}
         mode={taskModalMode}
         task={modalTask}
+        allTasks={sortedTasks}
         existingQueues={existingQueues}
         onClose={() => setTaskModalOpen(false)}
         onCreate={async (input) => {
-          await addTask(input);
+          return await addTask(input);
+        }}
+        onCreateSubtasksBatch={async (inputs) => {
+          return await addTasksBatch(inputs);
         }}
         onSaveEdit={handleSaveTaskEdit}
+        onSaveTasksBatch={replaceTasksBatch}
         onDelete={taskModalMode === "edit" ? removeTask : undefined}
+        onOpenTask={openTaskEdit}
+        onTriggerComplete={handleTriggerComplete}
+      />
+
+      <TaskCompleteModal
+        open={completeModalOpen}
+        task={completeTask}
+        parentTask={parentForCompleteModal}
+        onClose={() => setCompleteModalOpen(false)}
+        onConfirm={handleConfirmComplete}
       />
 
       <AvailabilityModal

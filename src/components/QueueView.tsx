@@ -8,6 +8,7 @@ type Props = {
   tasks: Task[];
   onOpenTask: (task: Task) => void;
   onCompletionChange: (id: string, checked: boolean) => void;
+  onTriggerComplete?: (task: Task) => void;
 };
 
 function priorityClass(priority: string): string {
@@ -83,9 +84,38 @@ function getQueueTierBadge(group: QueueGroup): { label: string; className: strin
   }
 }
 
-export function QueueView({ tasks, onOpenTask, onCompletionChange }: Props) {
+export function QueueView({ tasks, onOpenTask, onCompletionChange, onTriggerComplete }: Props) {
   const today = useMemo(() => new Date(), []);
   const queues = useMemo(() => groupAndSortQueues(tasks, today), [tasks, today]);
+
+  // Build lookup maps for subtasks info and parent tasks
+  const { subtaskStats } = useMemo(() => {
+    const map = new Map<string, Task>();
+    const childrenByParent = new Map<string, Task[]>();
+
+    for (const t of tasks) {
+      map.set(t.id, t);
+      if (t.parentId) {
+        const list = childrenByParent.get(t.parentId) || [];
+        list.push(t);
+        childrenByParent.set(t.parentId, list);
+      }
+    }
+
+    const stats = new Map<string, { index: number; total: number; parent: Task | null }>();
+
+    for (const [parentId, children] of childrenByParent.entries()) {
+      children.sort((a, b) => (a.subtaskIndex ?? 0) - (b.subtaskIndex ?? 0));
+      const total = children.length;
+      const parent = map.get(parentId) ?? null;
+      children.forEach((c, idx) => {
+        const displayIndex = c.subtaskIndex != null && c.subtaskIndex > 0 ? c.subtaskIndex : idx + 1;
+        stats.set(c.id, { index: displayIndex, total, parent });
+      });
+    }
+
+    return { subtaskStats: stats };
+  }, [tasks]);
 
   return (
     <div className="queue-view-container">
@@ -132,6 +162,7 @@ export function QueueView({ tasks, onOpenTask, onCompletionChange }: Props) {
                   group.tasks.map((task) => {
                     const overdue = isOverdue(task, today);
                     const dlInfo = formatDeadlineText(task, today);
+                    const stStat = subtaskStats.get(task.id);
 
                     return (
                       <div
@@ -149,9 +180,24 @@ export function QueueView({ tasks, onOpenTask, onCompletionChange }: Props) {
                         title="Click to view/edit task details"
                       >
                         <div className="queue-card-header">
-                          <span className="queue-task-title">
-                            {task.name}
-                          </span>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", overflow: "hidden" }}>
+                            <span className="queue-task-title">
+                              {task.name}
+                            </span>
+                            {stStat && stStat.parent && (
+                              <button
+                                type="button"
+                                className="subtask-badge-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (stStat.parent) onOpenTask(stStat.parent);
+                                }}
+                                title={`Part ${stStat.index} of ${stStat.total} — Click to view parent task: “${stStat.parent.name}”`}
+                              >
+                                {stStat.index}/{stStat.total}
+                              </button>
+                            )}
+                          </div>
                           <input
                             type="checkbox"
                             checked={task.completion}
@@ -159,7 +205,11 @@ export function QueueView({ tasks, onOpenTask, onCompletionChange }: Props) {
                             className="queue-card-checkbox"
                             onClick={(e) => e.stopPropagation()}
                             onChange={(e) => {
-                              onCompletionChange(task.id, e.target.checked);
+                              if (e.target.checked && onTriggerComplete) {
+                                onTriggerComplete(task);
+                              } else {
+                                onCompletionChange(task.id, e.target.checked);
+                              }
                               e.currentTarget.blur();
                             }}
                           />

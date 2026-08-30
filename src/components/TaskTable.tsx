@@ -12,6 +12,7 @@ type Props = {
   onOpenTask: (task: Task) => void;
   onUpdateField: (id: string, patch: Partial<Omit<Task, "id">>) => void;
   onCompletionChange: (id: string, checked: boolean) => void;
+  onTriggerComplete?: (task: Task) => void;
   onMissedChange: (id: string, checked: boolean) => void;
 };
 
@@ -52,6 +53,7 @@ export function TaskTable({
   onOpenTask,
   onUpdateField,
   onCompletionChange,
+  onTriggerComplete,
   onMissedChange,
 }: Props) {
   const today = new Date();
@@ -63,6 +65,35 @@ export function TaskTable({
     () => cumulativeRemainingInDisplayOrder(tasks),
     [tasks],
   );
+
+  // Build lookup maps for subtasks info and parent tasks
+  const { subtaskStats } = useMemo(() => {
+    const map = new Map<string, Task>();
+    const childrenByParent = new Map<string, Task[]>();
+
+    for (const t of tasks) {
+      map.set(t.id, t);
+      if (t.parentId) {
+        const list = childrenByParent.get(t.parentId) || [];
+        list.push(t);
+        childrenByParent.set(t.parentId, list);
+      }
+    }
+
+    const stats = new Map<string, { index: number; total: number; parent: Task | null }>();
+
+    for (const [parentId, children] of childrenByParent.entries()) {
+      children.sort((a, b) => (a.subtaskIndex ?? 0) - (b.subtaskIndex ?? 0));
+      const total = children.length;
+      const parent = map.get(parentId) ?? null;
+      children.forEach((c, idx) => {
+        const displayIndex = c.subtaskIndex != null && c.subtaskIndex > 0 ? c.subtaskIndex : idx + 1;
+        stats.set(c.id, { index: displayIndex, total, parent });
+      });
+    }
+
+    return { subtaskStats: stats };
+  }, [tasks]);
 
   useEffect(() => {
     if (!editing) return;
@@ -169,16 +200,35 @@ export function TaskTable({
                   : task.priority
                 : task.priority;
 
+            const stStat = subtaskStats.get(task.id);
+
             return (
               <tr key={task.id} className={rowClass}>
                 <td>
-                  <button
-                    type="button"
-                    className="task-name-btn"
-                    onClick={() => onOpenTask(task)}
-                  >
-                    {task.name}
-                  </button>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                    <button
+                      type="button"
+                      className="task-name-btn"
+                      onClick={() => onOpenTask(task)}
+                    >
+                      {task.name}
+                    </button>
+
+                    {/* Subtask index/total badge jumping to parent task */}
+                    {stStat && stStat.parent && (
+                      <button
+                        type="button"
+                        className="subtask-badge-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (stStat.parent) onOpenTask(stStat.parent);
+                        }}
+                        title={`Part ${stStat.index} of ${stStat.total} — Click to view parent task: “${stStat.parent.name}”`}
+                      >
+                        {stStat.index}/{stStat.total}
+                      </button>
+                    )}
+                  </div>
                 </td>
                 <td
                   className="editable col-wide-only"
@@ -285,7 +335,11 @@ export function TaskTable({
                     checked={task.completion}
                     aria-label="Completion"
                     onChange={(e) => {
-                      onCompletionChange(task.id, e.target.checked);
+                      if (e.target.checked && onTriggerComplete) {
+                        onTriggerComplete(task);
+                      } else {
+                        onCompletionChange(task.id, e.target.checked);
+                      }
                       e.currentTarget.blur();
                     }}
                   />

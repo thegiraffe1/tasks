@@ -11,6 +11,8 @@ export type Task = {
   queue?: string;
   completion: boolean;
   missed: boolean;
+  parentId?: string | null;
+  subtaskIndex?: number | null;
   updatedAt: string;
 };
 

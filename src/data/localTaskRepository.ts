@@ -31,8 +31,17 @@ export function createLocalTaskRepository(): TaskRepository {
       else tasks[i] = task;
       saveRaw(tasks);
     },
+    async upsertBatch(taskList) {
+      const tasks = loadRaw();
+      for (const task of taskList) {
+        const i = tasks.findIndex((t) => t.id === task.id);
+        if (i === -1) tasks.push(task);
+        else tasks[i] = task;
+      }
+      saveRaw(tasks);
+    },
     async remove(id) {
-      saveRaw(loadRaw().filter((t) => t.id !== id));
+      saveRaw(loadRaw().filter((t) => t.id !== id && t.parentId !== id));
     },
   };
 }
