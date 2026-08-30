@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { Task } from "@/types/task";
 import { isOverdue } from "@/types/task";
-import { groupAndSortQueues, getDaysUntilDue } from "@/lib/queueUtils";
+import { groupAndSortQueues, getDaysUntilDue, type QueueGroup } from "@/lib/queueUtils";
 import "./QueueView.css";
 
 type Props = {
@@ -42,6 +42,47 @@ function formatDeadlineText(task: Task, today: Date): { text: string; overdue: b
   }
 }
 
+function getQueueTierBadge(group: QueueGroup): { label: string; className: string; title: string } {
+  switch (group.tier) {
+    case "overdue": {
+      const days = group.urgencyDays != null ? Math.abs(group.urgencyDays) : 1;
+      return {
+        label: `⚠️ Past Due (${days}d)`,
+        className: "queue-badge tier-badge-overdue",
+        title: `Most urgent task is overdue by ${days} day(s) (${group.mostUrgentDeadline})`,
+      };
+    }
+    case "today":
+      return {
+        label: "📅 Due Today",
+        className: "queue-badge tier-badge-today",
+        title: `Most urgent task is due today (${group.mostUrgentDeadline})`,
+      };
+    case "upcoming": {
+      const days = group.urgencyDays ?? 0;
+      const text = days === 1 ? "Due Tomorrow" : `Due in ${days}d`;
+      return {
+        label: `⏳ ${text}`,
+        className: "queue-badge tier-badge-upcoming",
+        title: `Earliest upcoming deadline is ${group.mostUrgentDeadline} (in ${days} days)`,
+      };
+    }
+    case "no-deadline":
+      return {
+        label: "📋 No Deadline",
+        className: "queue-badge tier-badge-neutral",
+        title: "All active tasks in this queue have no deadline specified",
+      };
+    case "empty":
+    default:
+      return {
+        label: "✓ All Done",
+        className: "queue-badge tier-badge-empty",
+        title: "No active tasks in this queue",
+      };
+  }
+}
+
 export function QueueView({ tasks, onOpenTask, onCompletionChange }: Props) {
   const today = useMemo(() => new Date(), []);
   const queues = useMemo(() => groupAndSortQueues(tasks, today), [tasks, today]);
@@ -52,7 +93,7 @@ export function QueueView({ tasks, onOpenTask, onCompletionChange }: Props) {
         <p className="muted">No active queues found. Add a task to get started.</p>
       ) : (
         queues.map((group) => {
-          const logScore = group.score > 0 ? (Math.log10(group.score + 1)).toFixed(1) : "0.0";
+          const tierBadge = getQueueTierBadge(group);
 
           return (
             <div key={group.name} className="queue-row-section">
@@ -62,13 +103,26 @@ export function QueueView({ tasks, onOpenTask, onCompletionChange }: Props) {
                   <span className="queue-badge count-badge">
                     {group.tasks.length} {group.tasks.length === 1 ? "task" : "tasks"}
                   </span>
+                  {group.totalActiveHours > 0 && (
+                    <span className="queue-badge hours-badge" title="Total active hours in queue">
+                      ⏱️ {group.totalActiveHours}h
+                    </span>
+                  )}
                 </div>
-                <span
-                  className="queue-badge score-badge"
-                  title={`Raw urgency score: ${Math.round(group.score * 10) / 10} (log10 scaled)`}
-                >
-                  Score: {logScore}
-                </span>
+
+                <div className="queue-header-badges">
+                  {group.highestPriorityOnUrgentDate && (
+                    <span
+                      className={`queue-badge priority-indicator-badge ${priorityClass(group.highestPriorityOnUrgentDate)}`}
+                      title={`Highest priority task on urgent date: ${group.highestPriorityOnUrgentDate} (${group.priorityHoursOnUrgentDate[group.highestPriorityOnUrgentDate]}h)`}
+                    >
+                      Top: {group.highestPriorityOnUrgentDate}
+                    </span>
+                  )}
+                  <span className={tierBadge.className} title={tierBadge.title}>
+                    {tierBadge.label}
+                  </span>
+                </div>
               </div>
 
               <div className="queue-cards-scroll">

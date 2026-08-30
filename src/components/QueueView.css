@@ -20,12 +20,15 @@
   margin-bottom: 0.85rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .queue-title-wrap {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.65rem;
+  flex-wrap: wrap;
 }
 
 .queue-name {
@@ -35,18 +38,69 @@
   color: #0f172a;
 }
 
+.queue-header-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .queue-badge {
   display: inline-flex;
   align-items: center;
-  padding: 0.15rem 0.6rem;
+  padding: 0.2rem 0.65rem;
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
+  line-height: 1.2;
 }
 
 .count-badge {
   background: #e2e8f0;
   color: #334155;
+}
+
+.hours-badge {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.priority-indicator-badge {
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.tier-badge-overdue {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+  box-shadow: 0 1px 2px rgba(185, 28, 28, 0.08);
+}
+
+.tier-badge-today {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fcd34d;
+  box-shadow: 0 1px 2px rgba(180, 83, 9, 0.08);
+}
+
+.tier-badge-upcoming {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.tier-badge-neutral {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.tier-badge-empty {
+  background: #f1f5f9;
+  color: #94a3b8;
+  border: 1px solid #e2e8f0;
 }
 
 .score-badge {
